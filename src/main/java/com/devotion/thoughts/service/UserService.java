@@ -7,8 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
-
-@Service  // <-- missing in your code
+@Service
 public class UserService {
 
     @Autowired
@@ -24,13 +23,13 @@ public class UserService {
         return userRepositoryObj.save(userData);
     }
 
-    // ✅ Get by ID
+    // ✅ Get by username
     public Optional<UserModel> getUserByUserName(String username) {
         return Optional.ofNullable(userRepositoryObj.findByUsername(username));
     }
 
-    // ✅ Delete by ID
-    public void deleteUserById(String id) {
-        userRepositoryObj.deleteById(id);
+    // ✅ Delete by username
+    public void deleteUserByUsername(String username) {
+        userRepositoryObj.deleteByUsername(username);
     }
 }

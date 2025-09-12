@@ -22,52 +22,71 @@ public class UserEntryController {
     public ResponseEntity<List<UserModel>> getAllUsers() {
         List<UserModel> users = userServiceObj.getAllUsers();
         if (users.isEmpty()) {
-            return ResponseEntity.noContent().build();  // 204 if no users
+            return ResponseEntity.noContent().build();  // 204
         }
-        return ResponseEntity.ok(users); // 200 with list
+        return ResponseEntity.ok(users); // 200
     }
 
-    // ✅ Get user by ID
+    // ✅ Get user by username
     @GetMapping("/id/{username}")
     public ResponseEntity<UserModel> getUserById(@PathVariable String username) {
         Optional<UserModel> user = userServiceObj.getUserByUserName(username);
-        return user.map(ResponseEntity::ok)   // 200 if found
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build()); // 404 if not found
-    }
-
-    // ✅ Add a new user
-    @PostMapping("/adduser")
-    public ResponseEntity<UserModel> addANewUser(@RequestBody UserModel newUser) {
-        UserModel savedUser = userServiceObj.addAUser(newUser);
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedUser); // 201 Created
-    }
-
-    // ✅ Update an existing user
-    @PutMapping("/id/{username}")
-    public ResponseEntity<UserModel> updateUser(@PathVariable String username, @RequestBody UserModel newUserData) {
-        Optional<UserModel> oldDataOpt = userServiceObj.getUserByUserName(username);
-
-        if (oldDataOpt.isPresent()) {
-            UserModel oldData = oldDataOpt.get();
-            oldData.setUsername(newUserData.getUsername());
-            oldData.setPassword(newUserData.getPassword());
-
-            UserModel updatedUser = userServiceObj.addAUser(oldData); // ✅ save back to DB
-            return ResponseEntity.ok(updatedUser); // 200 OK with updated data
+        if (user.isPresent()) {
+            return ResponseEntity.ok(user.get());
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build(); // 404 if user not found
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
 
-    // ✅ Delete user by ID
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<Void> deleteUser(@PathVariable String id) {
-        Optional<UserModel> existing = userServiceObj.getUserByUserName(id);
-        if (existing.isPresent()) {
-            userServiceObj.deleteUserById(id);
-            return ResponseEntity.noContent().build(); // 204 No Content
+    @PostMapping("/adduser")
+    public ResponseEntity<UserModel> addANewUser(@RequestBody UserModel newUser) {
+        try {
+            UserModel savedUser = userServiceObj.addAUser(newUser);
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
+        } catch (Exception e) {
+            // log it
+            System.out.println(e.getCause());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+
+    // ✅ Update an existing user (can change both username and password safely)
+    @PutMapping("/id/{username}")
+    public ResponseEntity<UserModel> updateUser(@PathVariable String username,
+                                                @RequestBody UserModel newUserData) {
+        Optional<UserModel> existingOpt = userServiceObj.getUserByUserName(username);
+
+        if (existingOpt.isPresent()) {
+            // If username is changing AND already exists in DB, return 409 Conflict
+            Optional<UserModel> conflictCheck = userServiceObj.getUserByUserName(newUserData.getUsername());
+            if (conflictCheck.isPresent() && !newUserData.getUsername().equals(username)) {
+                return ResponseEntity.status(HttpStatus.CONFLICT).build(); // 409
+            }
+
+            // Delete old user
+            userServiceObj.deleteUserByUsername(username);
+
+            // Save new user (with new username + password)
+            UserModel updatedUser = userServiceObj.addAUser(newUserData);
+
+            return ResponseEntity.ok(updatedUser);
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build(); // 404 Not Found
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build(); // 404 if old user not found
+        }
+    }
+
+
+    // ✅ Delete user by username
+    @DeleteMapping("/delete/{username}")
+    public ResponseEntity<Object> deleteUser(@PathVariable String username) {
+        Optional<UserModel> existingOpt = userServiceObj.getUserByUserName(username);
+
+        if (existingOpt.isPresent()) {
+            userServiceObj.deleteUserByUsername(username);
+            return ResponseEntity.noContent().build();
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         }
     }
 }
