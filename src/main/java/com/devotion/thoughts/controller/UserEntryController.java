@@ -8,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/users")
@@ -30,37 +29,36 @@ public class UserEntryController {
     // ✅ Get user by username
     @GetMapping("/id/{username}")
     public ResponseEntity<UserModel> getUserById(@PathVariable String username) {
-        Optional<UserModel> user = userServiceObj.getUserByUserName(username);
-        if (user.isPresent()) {
-            return ResponseEntity.ok(user.get());
+        UserModel user = userServiceObj.getUserByUserName(username);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build(); // 404 if not found
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.ok(user); // 200
         }
     }
 
+    // ✅ Add new user
     @PostMapping("/adduser")
     public ResponseEntity<UserModel> addANewUser(@RequestBody UserModel newUser) {
         try {
             UserModel savedUser = userServiceObj.addAUser(newUser);
             return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
         } catch (Exception e) {
-            // log it
-            System.out.println(e.getCause());
+            System.out.println(e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
-
-    // ✅ Update an existing user (can change both username and password safely)
+    // ✅ Update user
     @PutMapping("/id/{username}")
     public ResponseEntity<UserModel> updateUser(@PathVariable String username,
                                                 @RequestBody UserModel newUserData) {
-        Optional<UserModel> existingOpt = userServiceObj.getUserByUserName(username);
+        UserModel existingUser = userServiceObj.getUserByUserName(username);
 
-        if (existingOpt.isPresent()) {
+        if (existingUser != null) {
             // If username is changing AND already exists in DB, return 409 Conflict
-            Optional<UserModel> conflictCheck = userServiceObj.getUserByUserName(newUserData.getUsername());
-            if (conflictCheck.isPresent() && !newUserData.getUsername().equals(username)) {
+            UserModel conflictCheck = userServiceObj.getUserByUserName(newUserData.getUsername());
+            if (conflictCheck != null && !newUserData.getUsername().equals(username)) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).build(); // 409
             }
 
@@ -72,21 +70,20 @@ public class UserEntryController {
 
             return ResponseEntity.ok(updatedUser);
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build(); // 404 if old user not found
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build(); // 404
         }
     }
 
-
-    // ✅ Delete user by username
+    // ✅ Delete user
     @DeleteMapping("/delete/{username}")
     public ResponseEntity<Object> deleteUser(@PathVariable String username) {
-        Optional<UserModel> existingOpt = userServiceObj.getUserByUserName(username);
+        UserModel existingUser = userServiceObj.getUserByUserName(username);
 
-        if (existingOpt.isPresent()) {
+        if (existingUser != null) {
             userServiceObj.deleteUserByUsername(username);
-            return ResponseEntity.noContent().build();
+            return ResponseEntity.noContent().build(); // 204
         } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build(); // 404
         }
     }
 }

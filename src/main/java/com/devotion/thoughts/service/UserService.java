@@ -3,11 +3,13 @@ package com.devotion.thoughts.service;
 import com.devotion.thoughts.model.UserModel;
 import com.devotion.thoughts.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
+
 @Service
+@Component
 public class UserService {
 
     @Autowired
@@ -24,8 +26,8 @@ public class UserService {
     }
 
     // ✅ Get by username
-    public Optional<UserModel> getUserByUserName(String username) {
-        return Optional.ofNullable(userRepositoryObj.findByUsername(username));
+    public UserModel getUserByUserName(String username) {
+        return userRepositoryObj.findByUsername(username);
     }
 
     // ✅ Delete by username
