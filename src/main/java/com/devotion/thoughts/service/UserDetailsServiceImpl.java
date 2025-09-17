@@ -1,31 +1,38 @@
 package com.devotion.thoughts.service;
 
+import com.devotion.thoughts.model.UserModel;
+import com.devotion.thoughts.repository.UserRepository;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
 
+    private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    public UserDetailsServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
+
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        // TODO: Replace with DB lookup
-        if ("devotee".equals(username)) {
-            return User.builder()
-                    .username("devotee")
-                    .password("$2a$10$7QshkEr2E2xAd6sclBtj4OLNQx9shkgY3xUktZiKEnMMyizfysh1y") // "password"
-                    .roles("USER")
-                    .build();
-        } else if ("admin".equals(username)) {
-            return User.builder()
-                    .username("admin")
-                    .password("$2a$10$7QshkEr2E2xAd6sclBtj4OLNQx9shkgY3xUktZiKEnMMyizfysh1y") // "password"
-                    .roles("ADMIN")
-                    .build();
+        UserModel user = userRepository.findByUsername(username);
+
+        if (user == null) {
+            throw new UsernameNotFoundException("User not found: " + username);
         }
 
-        throw new UsernameNotFoundException("User not found: " + username);
+        // Spring Security requires roles as ROLE_ prefix internally, add dynamically
+        return User.builder()
+                .username(user.getUsername())
+                .password(user.getPassword()) // already encoded
+                .roles(user.getRole())       // e.g., USER or ADMIN
+                .build();
     }
 }
