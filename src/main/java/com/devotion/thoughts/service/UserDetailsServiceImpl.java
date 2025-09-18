@@ -6,18 +6,15 @@ import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
 
     private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
 
-    public UserDetailsServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserDetailsServiceImpl(UserRepository userRepository) {
         this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -28,11 +25,10 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             throw new UsernameNotFoundException("User not found: " + username);
         }
 
-        // Spring Security requires roles as ROLE_ prefix internally, add dynamically
         return User.builder()
                 .username(user.getUsername())
-                .password(user.getPassword()) // already encoded
-                .roles(user.getRole())       // e.g., USER or ADMIN
+                .password(user.getPassword())
+                .roles(user.getRole()) // Make sure your UserModel has a `role` field like "USER" or "ADMIN"
                 .build();
     }
 }

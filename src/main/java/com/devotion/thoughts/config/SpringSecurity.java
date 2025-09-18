@@ -3,8 +3,12 @@ package com.devotion.thoughts.config;
 import com.devotion.thoughts.service.UserDetailsServiceImpl;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -12,36 +16,53 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SpringSecurity {
 
     private final UserDetailsServiceImpl userDetailsService;
+    private final PasswordEncoder passwordEncoder; // ✅ injected from PasswordConfig
 
-    public SpringSecurity(UserDetailsServiceImpl userDetailsService) {
+    public SpringSecurity(UserDetailsServiceImpl userDetailsService,
+                          PasswordEncoder passwordEncoder) {
         this.userDetailsService = userDetailsService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+    public UserDetailsService userDetailsService() {
+        return userDetailsService;
+    }
+
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
+        provider.setUserDetailsService(userDetailsService());
+        provider.setPasswordEncoder(passwordEncoder); // ✅ use injected encoder
+        return provider;
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable())
+        http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // Only ADMIN can manage users
-                        .requestMatchers("/users/**").hasRole("ADMIN")
+                        // ✅ Public endpoints
+                        .requestMatchers("/users/adduser").permitAll()
+                        .requestMatchers("/users/all").hasRole("ADMIN")
 
-                        // USER and ADMIN can read quotes
-                        .requestMatchers("/quotes/all/**").hasAnyRole("USER","ADMIN")
-
-                        // USER can add/edit/delete their own quotes
+                        // ✅ Quotes endpoints
                         .requestMatchers("/quotes/add/**").hasRole("USER")
+                        .requestMatchers("/quotes/all/**").hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/quotes/**").hasRole("USER")
 
-                        // any other request authenticated
+                        // ✅ Admin only
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+
+                        // ✅ All others
                         .anyRequest().authenticated()
                 )
-                .userDetailsService(userDetailsService)
-                .httpBasic(basic -> {});
+                .logout(logout -> logout.permitAll()); // removed formLogin()
+
         return http.build();
     }
 }
